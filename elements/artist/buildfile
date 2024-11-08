@@ -1,0 +1,126 @@
+
+./: liba{artist}
+
+# these shouldn't really be here...
+
+liba{fontconfig}: fontconfig/include/fontconfig/hxx{*.h}
+cxx.poptions =+ "-I$src_base/fontconfig/include"
+liba{fontconfig}:
+{
+  cxx.export.poptions = "-I$src_base/fontconfig/include"
+  cxx.libs += "C:/Coding/libraries/fontconfig/lib/x64/libfontconfig.lib"
+}
+
+libunibreak_sources = \
+	emojidef.c \
+   graphemebreak.c \
+   linebreak.c \
+   linebreakdata.c \
+   linebreakdef.c \
+   unibreakbase.c \
+   unibreakdef.c \
+   wordbreak.c
+liba{unibreak}: libunibreak/src/c{$libunibreak_sources} libunibreak/src/h{*}
+cxx.poptions =+ "-I$src_base/libunibreak/src"
+lib{unibreak}:
+{
+  cxx.export.poptions = "-I$src_base/libunibreak/src"
+}
+
+#
+
+intf_libs = # Interface dependencies.
+impl_libs = # Implementation dependencies.
+
+import intf_libs += lib{infra}
+
+import impl_libs += libharfbuzz%lib{harfbuzz}
+impl_libs += liba{fontconfig} liba{unibreak}
+
+artist_sources = \
+   src/artist/rect.cpp \
+   src/artist/resources.cpp \
+   src/artist/svg_path.cpp
+
+skia_path = "$src_base/skia"
+
+artist_skia_window_context_sources = \
+	$skia_path/tools/sk_app/win/GLWindowContext_win.cpp \
+    $skia_path/tools/sk_app/win/RasterWindowContext_win.cpp 
+
+artist_skia_impl_sources = \
+	impl/skia/canvas.cpp \
+      impl/skia/image.cpp \
+      impl/skia/font.cpp \
+      impl/skia/text_layout.cpp \
+      impl/skia/path.cpp \
+      impl/skia/detail/harfbuzz.cpp \
+      $skia_path/tools/sk_app/GLWindowContext.cpp \
+      $skia_path/tools/sk_app/WindowContext.cpp \
+      $skia_path/tools/ToolUtils.cpp \
+      $skia_path/tools/SkMetaData.cpp \
+	  $artist_skia_window_context_sources
+
+# @NOTE: looks like not intended to be built shared
+# see for example `extern void init_paths();` in resources.hpp, which is only implemented by the host which is part of elements, not artist.
+liba{artist}: cxx{$artist_sources $artist_skia_impl_sources} include/{hxx}{**} $impl_libs $intf_libs
+
+# Build options.
+#
+cxx.poptions =+ "-I$src_base/include"
+
+#todo: stuff using #include "include/..." which should probably be fixed, but also tools/... which is less clear
+skia_include_paths = \
+	"-I$skia_path" \
+	"-I$skia_path/include" \
+	"-I$skia_path/include/core" \
+	"-I$skia_path/include/config" \
+	"-I$skia_path/include/utils" \
+	"-I$skia_path/include/gpu" \
+	"-I$skia_path/include/codec" \
+	"-I$skia_path/include/effects" \
+	"-I$skia_path/include/ports"
+# @note: covering what looks like a hack to make use of a private header, from impl/skia/detail/harfbuzz.cpp
+skia_include_paths += "-I$skia_path/include/config"
+
+cxx.poptions += $skia_include_paths
+
+public_defines = -DARTIST_SKIA -DSK_GL
+public_defines += -DWIN32_LEAN_AND_MEAN -DNOMINMAX -D_UNICODE
+
+# @todo: temp. needed because skia is not being built with asan
+#public_defines += -D_DISABLE_VECTOR_ANNOTATION
+#public_defines += -D_DISABLE_STRING_ANNOTATION
+
+cxx.poptions += $public_defines
+
+obja{*}: cxx.poptions += -DARTIST_STATIC_BUILD
+
+temp_skia_config = static-msvc-debug #shared-msvc-debug
+temp_skia_lib = skia.lib #skia.dll.lib
+
+# Export options.
+#
+liba{artist}:
+{
+  cxx.export.poptions = "-I$src_base/include"
+  cxx.export.poptions += $skia_include_paths
+  cxx.export.poptions += $public_defines
+  cxx.export.libs = $intf_libs
+
+  # .export
+  #cxx.loptions += "/LIBPATH:$skia_path/out/$temp_skia_config"
+  cxx.libs += $skia_path/out/$temp_skia_config/$temp_skia_lib
+  cxx.libs += Gdi32.lib Ole32.lib Advapi32.lib Opengl32.lib
+}
+
+#liba{artist}: cxx.export.poptions += -DARTIST_STATIC
+
+# Install into the artist/ subdirectory of, say, /usr/include/
+# recreating subdirectories.
+#
+{hxx}{*}:
+{
+  install         = include/artist/
+  install.subdirs = true
+}

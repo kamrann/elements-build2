@@ -1,0 +1,4 @@
+[submodule "upstream"]
+	path = upstream
+	url = https://github.com/cycfi/elements.git
+	branch = skia_2024

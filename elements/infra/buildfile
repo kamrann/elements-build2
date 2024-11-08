@@ -1,0 +1,32 @@
+intf_libs = # Interface dependencies.
+
+lib{infra}: include/{hxx}{**} $intf_libs
+
+# Build options.
+#
+cxx.poptions =+ "-I$src_base/include"
+
+public_defines = -DINFRA_FORCE_STD_FS -DINFRA_FORCE_STD_STRING_VIEW -DINFRA_FORCE_STD_OPTIONAL
+
+# @NOTE: workaround, infra/support.hpp defines this before including cmath, but seems there are places that can 
+# pull in cmath before including support.hpp
+public_defines += -D_USE_MATH_DEFINES
+
+cxx.poptions += $public_defines
+
+# Export options.
+#
+lib{infra}:
+{
+  cxx.export.poptions = "-I$src_base/include" $public_defines
+  cxx.export.libs = $intf_libs
+}
+
+# Install into the infra/ subdirectory of, say, /usr/include/
+# recreating subdirectories.
+#
+{hxx}{*}:
+{
+  install         = include/infra/
+  install.subdirs = true
+}

@@ -1,0 +1,16 @@
+
+# Building SKIA
+
+- git clone --depth=1 --branch chrome/m106 https://skia.googlesource.com/skia.git skia
+  - Check what SKIA commit artist is using. Was the chrome/m106 branch.
+- python tools/git-sync-deps
+  - was some issue with python subprocess invocation, relating to use of python3, and PATH env var
+- bin/gn gen out/static-msvc-debug --args='is_official_build=false win_vc="C:\Program Files\Microsoft Visual Studio\2022\Community\VC" extra_cflags_cc=["/MD"]'
+  - add 'is_component_build=true' to enable shared library build, but seems to lead to issues with usage of non-exported symbols. possible this relates to is_official_build value.
+  - can use 'bin/gn args out/static-msvc-debug --list' to print options
+- ninja.exe -C out/static-msvc-debug
+
+# fontconfig
+
+- for now taken as prebuilt, from https://github.com/ShiftMediaProject/fontconfig/releases
+

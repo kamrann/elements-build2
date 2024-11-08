@@ -1,0 +1,95 @@
+intf_libs = # Interface dependencies.
+impl_libs = # Implementation dependencies.
+
+import intf_libs += lib{infra}
+import intf_libs += liba{artist} # @NOTE: see comment in artst/buildfile re static-only
+
+import intf_libs += libasio%lib{asio}
+
+elements_sources = \
+   src/element/button.cpp \
+   src/element/child_window.cpp \
+   src/element/composite.cpp \
+   src/element/dial.cpp \
+   src/element/drag_and_drop.cpp \
+   src/element/element.cpp \
+   src/element/floating.cpp \
+   src/element/flow.cpp \
+   src/element/grid.cpp \
+   src/element/image.cpp \
+   src/element/label.cpp \
+   src/element/layer.cpp \
+   src/element/list.cpp \
+   src/element/menu.cpp \
+   src/element/popup.cpp \
+   src/element/port.cpp \
+   src/element/proxy.cpp \
+   src/element/range_slider.cpp \
+   src/element/selection.cpp \
+   src/element/slider.cpp \
+   src/element/status_bar.cpp \
+   src/element/style/border.cpp \
+   src/element/style/button.cpp \
+   src/element/style/check_box.cpp \
+   src/element/style/grid_lines.cpp \
+   src/element/style/icon_button.cpp \
+   src/element/style/menu.cpp \
+   src/element/style/misc.cpp \
+   src/element/style/radio_button.cpp \
+   src/element/style/slide_switch.cpp \
+   src/element/style/slider.cpp \
+   src/element/style/thumbwheel.cpp \
+   src/element/text.cpp \
+   src/element/thumbwheel.cpp \
+   src/element/tile.cpp \
+   src/element/tooltip.cpp \
+   src/support/draw_utils.cpp \
+   src/support/payload.cpp \
+   src/support/receiver.cpp \
+   src/support/text_utils.cpp \
+   src/support/theme.cpp \
+   src/view.cpp
+
+lib{elements}: cxx{$elements_sources host/windows/**} include/{hxx}{**} hxx{version} $impl_libs $intf_libs
+cxx.libs += Shcore.lib
+
+hxx{version}: in{version} $src_root/manifest
+
+# Build options.
+#
+cxx.poptions =+ "-I$out_root" "-I$src_base/include"
+
+public_defines = -DELEMENTS_HOST_UI_LIBRARY_WIN32
+cxx.poptions += $public_defines
+
+obja{*}: cxx.poptions += -DELEMENTS_STATIC_BUILD
+objs{*}: cxx.poptions += -DELEMENTS_SHARED_BUILD
+
+# Export options.
+#
+lib{elements}:
+{
+  cxx.export.poptions = "-I$out_root" "-I$src_base/include" $public_defines
+  cxx.export.libs = $intf_libs
+}
+
+liba{elements}: cxx.export.poptions += -DELEMENTS_STATIC
+libs{elements}: cxx.export.poptions += -DELEMENTS_SHARED
+
+# For pre-releases use the complete version to make sure they cannot
+# be used in place of another pre-release or the final version. See
+# the version module for details on the version.* variable values.
+#
+if $version.pre_release
+  lib{elements}: bin.lib.version = "-$version.project_id"
+else
+  lib{elements}: bin.lib.version = "-$version.major.$version.minor"
+
+# Install into the elements/ subdirectory of, say, /usr/include/
+# recreating subdirectories.
+#
+{hxx}{*}:
+{
+  install         = include/elements/
+  install.subdirs = true
+}

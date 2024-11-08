@@ -1,0 +1,8 @@
+tgt_name = $name($import.target)
+
+$out_root/$tgt_name/
+{
+  include ./
+}
+
+export $out_root/$tgt_name/$import.target

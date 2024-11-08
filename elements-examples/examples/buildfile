@@ -1,0 +1,24 @@
+
+import libs = elements%liba{elements}
+
+[dir_paths] example_dirs = {examples/*/} #examples/text_edit examples/buttons
+
+for d: $example_dirs
+{
+	ex_name = $name($d)
+	out = $out_base/examples/$ex_name
+	./: $out/exe{$ex_name}
+	$out/exe{$ex_name}: {cxx hxx}{$d/**} $libs
+	$out/exe{$ex_name}: $out/fsdir{resources}: include = $directory_exists($src_base/$d/resources)
+
+	$out/fsdir{resources}:
+	% update
+	{{
+		src_res = $src_base/examples/$name($directory($>))/resources
+		ln -s $src_res $directory($>)/resources
+	}}
+	% clean
+	{{
+		rm $directory($>)/resources
+	}}
+}
