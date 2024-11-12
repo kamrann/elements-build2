@@ -3,6 +3,8 @@ import libs = elements%liba{elements}
 
 [dir_paths] example_dirs = {examples/*/} #examples/text_edit examples/buttons
 
+./:
+
 for d: $example_dirs
 {
 	ex_name = $name($d)

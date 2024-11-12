@@ -17,3 +17,14 @@
 # Use `binary` to make sure certain files are never auto-detected as text.
 #
 #*.png binary
+
+elements/artist/impl symlink=dir
+elements/artist/include symlink=dir
+elements/artist/libunibreak symlink=dir
+elements/artist/src symlink=dir
+
+elements/elements/host symlink=dir
+elements/elements/include symlink=dir
+elements/elements/src symlink=dir
+
+elements/infra/include symlink=dir

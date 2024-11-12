@@ -1,3 +1,0 @@
-import libs = elements%liba{elements}
-
-exe{driver}: {hxx cxx}{**} $libs testscript{**}

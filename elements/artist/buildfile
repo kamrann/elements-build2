@@ -1,15 +1,29 @@
 
+if ($cxx.target.class != 'windows')
+	fail "Currently only windows supported"
+
+if (!$defined(config.elements.skia_path) || !$defined(config.elements.skia_build_path) || !$defined(config.elements.fontconfig_path))
+	fail "config.elements.skia_path, config.elements.skia_build_path and config.elements.fontconfig_path must all be specified"
+
+if (!$directory_exists($config.elements.skia_path))
+	fail "SKIA path $config.elements.skia_path not found"
+
+if (!$directory_exists($config.elements.skia_build_path))
+	fail "SKIA build path $config.elements.skia_build_path not found"
+
+if (!$directory_exists($config.elements.fontconfig_path))
+	fail "fontconfig path $config.elements.fontconfig_path not found"
+
 ./: liba{artist}
 
-# these shouldn't really be here...
-
-liba{fontconfig}: fontconfig/include/fontconfig/hxx{*.h}
-cxx.poptions =+ "-I$src_base/fontconfig/include"
-liba{fontconfig}:
+[rule_hint=cxx] lib{artist_fontconfig}:
+lib{artist_fontconfig}:
 {
-  cxx.export.poptions = "-I$src_base/fontconfig/include"
-  cxx.libs += "C:/Coding/libraries/fontconfig/lib/x64/libfontconfig.lib"
+	cxx.export.poptions = "-I$config.elements.fontconfig_path/include"
+	cxx.export.libs += "$config.elements.fontconfig_path/lib/x64/libfontconfig.lib"
 }
+
+# this shouldn't really be here...
 
 libunibreak_sources = \
 	emojidef.c \
@@ -20,6 +34,7 @@ libunibreak_sources = \
    unibreakbase.c \
    unibreakdef.c \
    wordbreak.c
+
 liba{unibreak}: libunibreak/src/c{$libunibreak_sources} libunibreak/src/h{*}
 cxx.poptions =+ "-I$src_base/libunibreak/src"
 lib{unibreak}:
@@ -35,18 +50,16 @@ impl_libs = # Implementation dependencies.
 import intf_libs += lib{infra}
 
 import impl_libs += libharfbuzz%lib{harfbuzz}
-impl_libs += liba{fontconfig} liba{unibreak}
+impl_libs += liba{unibreak}
+impl_libs += lib{artist_fontconfig}
 
 artist_sources = \
    src/artist/rect.cpp \
    src/artist/resources.cpp \
    src/artist/svg_path.cpp
 
-skia_path = "$src_base/skia"
-
-artist_skia_window_context_sources = \
-	$skia_path/tools/sk_app/win/GLWindowContext_win.cpp \
-    $skia_path/tools/sk_app/win/RasterWindowContext_win.cpp 
+skia_path = $config.elements.skia_path
+skia_build_path = $config.elements.skia_build_path
 
 artist_skia_impl_sources = \
 	impl/skia/canvas.cpp \
@@ -54,20 +67,40 @@ artist_skia_impl_sources = \
       impl/skia/font.cpp \
       impl/skia/text_layout.cpp \
       impl/skia/path.cpp \
-      impl/skia/detail/harfbuzz.cpp \
-      $skia_path/tools/sk_app/GLWindowContext.cpp \
-      $skia_path/tools/sk_app/WindowContext.cpp \
-      $skia_path/tools/ToolUtils.cpp \
-      $skia_path/tools/SkMetaData.cpp \
-	  $artist_skia_window_context_sources
+    impl/skia/detail/harfbuzz.cpp
+
+skia_ext_sources = \
+	tools/sk_app/win/GLWindowContext_win \
+	tools/sk_app/win/RasterWindowContext_win \
+	tools/sk_app/GLWindowContext \
+	tools/sk_app/WindowContext \
+	tools/ToolUtils \
+	tools/SkMetaData
+
+# elements relies on compiling some skia source files itself, but build2 doesn't like prerequisites being outside the project directory.
+# so need to copy those sources into our out folder, and use those as the prerequisites.
+skia_ext_out_sources =
+for es: $skia_ext_sources
+{
+	# this is ugly, should be able to generate a list of files and then copy with a recipe defined outside the loop
+	skia_ext/cxx{$es}: "$skia_path/$es".cpp
+	{{
+		cp $path($<) $path($>)
+	}}
+	
+	skia_ext_out_sources += skia_ext/$es
+}
 
 # @NOTE: looks like not intended to be built shared
 # see for example `extern void init_paths();` in resources.hpp, which is only implemented by the host which is part of elements, not artist.
-liba{artist}: cxx{$artist_sources $artist_skia_impl_sources} include/{hxx}{**} $impl_libs $intf_libs
+liba{artist}: cxx{$artist_sources $artist_skia_impl_sources $skia_ext_out_sources} include/{hxx}{**} $impl_libs $intf_libs
 
 # Build options.
 #
 cxx.poptions =+ "-I$src_base/include"
+
+# See note in infra buildfile
+cxx.coptions += /wd4005
 
 #todo: stuff using #include "include/..." which should probably be fixed, but also tools/... which is less clear
 skia_include_paths = \
@@ -88,16 +121,10 @@ cxx.poptions += $skia_include_paths
 public_defines = -DARTIST_SKIA -DSK_GL
 public_defines += -DWIN32_LEAN_AND_MEAN -DNOMINMAX -D_UNICODE
 
-# @todo: temp. needed because skia is not being built with asan
-#public_defines += -D_DISABLE_VECTOR_ANNOTATION
-#public_defines += -D_DISABLE_STRING_ANNOTATION
-
 cxx.poptions += $public_defines
 
-obja{*}: cxx.poptions += -DARTIST_STATIC_BUILD
-
-temp_skia_config = static-msvc-debug #shared-msvc-debug
-temp_skia_lib = skia.lib #skia.dll.lib
+# Assuming static library build
+skia_lib_filename = skia.lib
 
 # Export options.
 #
@@ -109,12 +136,9 @@ liba{artist}:
   cxx.export.libs = $intf_libs
 
   # .export
-  #cxx.loptions += "/LIBPATH:$skia_path/out/$temp_skia_config"
-  cxx.libs += $skia_path/out/$temp_skia_config/$temp_skia_lib
+	cxx.libs += $skia_build_path/$skia_lib_filename
   cxx.libs += Gdi32.lib Ole32.lib Advapi32.lib Opengl32.lib
 }
-
-#liba{artist}: cxx.export.poptions += -DARTIST_STATIC
 
 # Install into the artist/ subdirectory of, say, /usr/include/
 # recreating subdirectories.

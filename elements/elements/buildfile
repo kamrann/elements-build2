@@ -62,6 +62,8 @@ cxx.poptions =+ "-I$out_root" "-I$src_base/include"
 public_defines = -DELEMENTS_HOST_UI_LIBRARY_WIN32
 cxx.poptions += $public_defines
 
+cxx.coptions += /wd4005
+
 obja{*}: cxx.poptions += -DELEMENTS_STATIC_BUILD
 objs{*}: cxx.poptions += -DELEMENTS_SHARED_BUILD
 

@@ -8,10 +8,10 @@ using cxx
 using c # temp for libunibreak
 
 hxx{*}: extension = hpp
-ixx{*}: extension = ipp
-txx{*}: extension = tpp
 cxx{*}: extension = cpp
 
-# The test target for cross-testing (running tests under Wine, etc).
-#
-test.target = $cxx.target
+# @NOTE: elements skia integration seems somewhat messy. uses multiple include base paths, including the root skia dir and skia/include.
+# Also unclear if there is a standard installation layout for skia. For now, we require a path for both the skia repository, and for the build out dir.
+config [dir_path] config.elements.skia_path
+config [dir_path] config.elements.skia_build_path
+config [dir_path] config.elements.fontconfig_path

@@ -1,5 +1,1 @@
-./: {*/ -build/ -temp_skia/} doc{README.md} manifest
-
-# Don't install tests.
-#
-tests/: install = false
+./: {*/ -build/} doc{README.md} manifest

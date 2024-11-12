@@ -4,13 +4,35 @@
 - git clone --depth=1 --branch chrome/m106 https://skia.googlesource.com/skia.git skia
   - Check what SKIA commit artist is using. Was the chrome/m106 branch.
 - python tools/git-sync-deps
-  - was some issue with python subprocess invocation, relating to use of python3, and PATH env var
-- bin/gn gen out/static-msvc-debug --args='is_official_build=false win_vc="C:\Program Files\Microsoft Visual Studio\2022\Community\VC" extra_cflags_cc=["/MD"]'
+  - was some issue with python subprocess invocation, relating to use of python3, and PATH env var, resulting in error "Returned 9009".
+  - use: 'Get-Command python3' to check, so far working around by creating a copy/symlink named python3.exe alongside the python.exe.
+- bin/gn gen out/static-msvc --args='is_official_build=false is_debug=false win_vc="C:\Program Files\Microsoft Visual Studio\2022\Community\VC" extra_cflags_cc=["/MD"]'
   - add 'is_component_build=true' to enable shared library build, but seems to lead to issues with usage of non-exported symbols. possible this relates to is_official_build value.
-  - can use 'bin/gn args out/static-msvc-debug --list' to print options
-- ninja.exe -C out/static-msvc-debug
+  - can use 'bin/gn args out/static-msvc --list' to print options
+  - see also https://github.com/cycfi/elements/discussions/358#discussioncomment-7669819 re what parts elements doesn't need
+  - skia_use_angle=false skia_use_icu=false skia_use_lua=false skia_use_piex=false skia_enable_tools=true skia_use_gl=true skia_enable_skottie=false
+    skia_enable_pdf=false is problematic as used by an example in tools, and unsure if/how can disable build of examples.
+- for clang builds:
+  - need to include compiler-rt;lld in LLVM_ENABLE_PROJECTS
+  - need to patch a cmake file in order for the install command to work. see https://stackoverflow.com/questions/46108390/building-llvm-with-cmake-and-visual-stuidio-fails-to-install
+  - clang_win="path/to/llvm/install"
+  - for custom-compiled llvm, need to add 'clang_win_version=19' or whatever, since if unspecified scripts look for x.y.z
+  - note: documented is_trivial_abi arg appears to be defunct and will actually break the build
+  - eg. (whatever matches to build2 config): extra_cflags_cc=["/MDd", "-Wno-enum-constexpr-conversion", "-Wno-unsafe-buffer-usage", "-Wno-switch-default", "-Wno-format", "-UNDEBUG"]
+  - -DNDEBUG is passed as a result of 'is_debug=false' (which we want for optimizations), hence adding -UNDEBUG if config uses debug runtime
+  - note that it will use clang-cl
+- ninja.exe -C out/static-msvc
 
 # fontconfig
 
 - for now taken as prebuilt, from https://github.com/ShiftMediaProject/fontconfig/releases
 
+# NOTES
+
+- currently relying on manually commenting out the '# define _USE_MATH_DEFINES' line in infra/support.hpp (and specifying in )
+
+# NOTES for upstream
+
+- artist submodule on skia_2024 branch pulls in infra as a nested submodule, but appears to be the wrong commit. grabbing infra master works.
+- infra/support.hpp defines _USE_MATH_DEFINES, but it appears that some source files can pull in math.h before support.hpp, leading to errors (not sure why presumably cmake is different).
+  predefining on the command line then is problematic due to macro redefinition. so ideally support.hpp would use a #if !defined().
